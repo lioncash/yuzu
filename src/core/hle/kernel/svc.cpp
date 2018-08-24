@@ -164,20 +164,21 @@ static ResultCode WaitSynchronization(Handle* index, VAddr handles_address, u64 
     if (handle_count > MaxHandles)
         return ResultCode(ErrorModule::Kernel, ErrCodes::TooLarge);
 
-    auto thread = GetCurrentThread();
+    auto* thread = GetCurrentThread();
 
     using ObjectPtr = SharedPtr<WaitObject>;
-    std::vector<ObjectPtr> objects(handle_count);
+    std::vector<ObjectPtr> objects;
+    objects.reserve(handle_count);
 
     for (u64 i = 0; i < handle_count; ++i) {
         const Handle handle = Memory::Read32(handles_address + i * sizeof(Handle));
-        const auto object = g_handle_table.Get<WaitObject>(handle);
+        auto object = g_handle_table.Get<WaitObject>(handle);
 
         if (object == nullptr) {
             return ERR_INVALID_HANDLE;
         }
 
-        objects[i] = object;
+        objects.push_back(std::move(object));
     }
 
     // Find the first object that is acquirable in the provided list of objects
