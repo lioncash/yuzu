@@ -322,10 +322,10 @@ public:
     T PopRaw();
 
     template <typename T>
-    Kernel::SharedPtr<T> GetMoveObject(std::size_t index);
+    Kernel::SharedPtr<T> GetMoveObject(std::size_t index) const;
 
     template <typename T>
-    Kernel::SharedPtr<T> GetCopyObject(std::size_t index);
+    Kernel::SharedPtr<T> GetCopyObject(std::size_t index) const;
 
     template <class T>
     std::shared_ptr<T> PopIpcInterface() {
@@ -399,12 +399,12 @@ void RequestParser::Pop(First& first_value, Other&... other_values) {
 }
 
 template <typename T>
-Kernel::SharedPtr<T> RequestParser::GetMoveObject(std::size_t index) {
+Kernel::SharedPtr<T> RequestParser::GetMoveObject(std::size_t index) const {
     return context->GetMoveObject<T>(index);
 }
 
 template <typename T>
-Kernel::SharedPtr<T> RequestParser::GetCopyObject(std::size_t index) {
+Kernel::SharedPtr<T> RequestParser::GetCopyObject(std::size_t index) const {
     return context->GetCopyObject<T>(index);
 }
 

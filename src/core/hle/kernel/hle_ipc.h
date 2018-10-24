@@ -198,13 +198,13 @@ public:
     std::size_t GetWriteBufferSize(int buffer_index = 0) const;
 
     template <typename T>
-    SharedPtr<T> GetCopyObject(std::size_t index) {
+    SharedPtr<T> GetCopyObject(std::size_t index) const {
         ASSERT(index < copy_objects.size());
         return DynamicObjectCast<T>(copy_objects[index]);
     }
 
     template <typename T>
-    SharedPtr<T> GetMoveObject(std::size_t index) {
+    SharedPtr<T> GetMoveObject(std::size_t index) const {
         ASSERT(index < move_objects.size());
         return DynamicObjectCast<T>(move_objects[index]);
     }
