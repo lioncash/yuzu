@@ -16,10 +16,13 @@ namespace Service::LM {
 class ILogger final : public ServiceFramework<ILogger> {
 public:
     ILogger() : ServiceFramework("ILogger") {
+        // clang-format off
         static const FunctionInfo functions[] = {
             {0x00000000, &ILogger::Initialize, "Initialize"},
-            {0x00000001, nullptr, "SetDestination"},
+            {0x00000001, &ILogger::SetDestination, "SetDestination"},
         };
+        // clang-format on
+
         RegisterHandlers(functions);
     }
 
@@ -176,6 +179,19 @@ private:
                 break;
             }
         }
+    }
+
+    // While used to redirect logging output elsewhere, we don't need to actually
+    // do this in an emulation context, so we can log the destination value
+    // and simply return that the operation was successful.
+    void SetDestination(Kernel::HLERequestContext& ctx) {
+        IPC::RequestParser rp{ctx};
+        const auto destination = rp.Pop<u32>();
+
+        LOG_DEBUG(Service_LM, "called. destination={:08X}", destination);
+
+        IPC::ResponseBuilder rb{ctx, 2};
+        rb.Push(RESULT_SUCCESS);
     }
 
     std::ostringstream log_stream;
