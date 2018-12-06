@@ -43,6 +43,24 @@ constexpr bool IsInsideAddressRange(VAddr address, u64 size, VAddr address_range
 }
 } // Anonymous namespace
 
+std::optional<u64> VirtualMemoryArea::SizeRemainingFromAddress(VAddr address) const {
+    if (address < base) {
+        return {};
+    }
+
+    if (address == base) {
+        return size;
+    }
+
+    const auto end_range = base + size;
+    const auto end_address = end_range - 1;
+    if (address > end_address) {
+        return {};
+    }
+
+    return end_range - address;
+}
+
 bool VirtualMemoryArea::CanBeMergedWith(const VirtualMemoryArea& next) const {
     ASSERT(base + size == next.base);
     if (permissions != next.permissions || state != next.state || attribute != next.attribute ||
@@ -451,6 +469,131 @@ ResultCode VMManager::MirrorMemory(VAddr dst_addr, VAddr src_addr, u64 size, Mem
     return RESULT_SUCCESS;
 }
 
+ResultCode VMManager::MapPhysicalMemory(VAddr address, std::size_t size) {
+    // If the entire range is already allocated, we don't need to do anything.
+    const std::size_t mapped_size = *SizeOfAllocatedVMAsInRange(address, size);
+    if (mapped_size == size) {
+        return RESULT_SUCCESS;
+    }
+
+    auto iter = FindVMA(address);
+    ASSERT(iter != vma_map.cend());
+
+    std::vector<std::pair<VAddr, u64>> allocated_ranges;
+    VAddr traversal_address = address;
+    const VAddr end_address = address + size - 1;
+
+    while (true) {
+        const auto& vma = iter->second;
+
+        const u64 range_size = vma.SizeRemainingFromAddress(traversal_address).value();
+        const VAddr vma_end = traversal_address + range_size;
+        const VAddr vma_end_address = vma_end - 1;
+
+        if (vma.type == VMAType::Free) {
+            const auto alloc_size =
+                std::min(vma_end - traversal_address, end_address - traversal_address + 1);
+
+            const auto map_result =
+                MapMemoryBlock(traversal_address, std::make_shared<std::vector<u8>>(alloc_size), 0,
+                               alloc_size, MemoryState::Heap);
+
+            // If a partial mapping failure occurs, then we need to unmap all
+            // previously allocated ranges that occurred as part of this function.
+            if (map_result.Failed()) {
+                for (const auto [unmap_address, unmap_size] : allocated_ranges) {
+                    UnmapRange(unmap_address, unmap_size);
+                }
+
+                return map_result.Code();
+            }
+
+            iter = Reprotect(*map_result, VMAPermission::ReadWrite);
+
+            allocated_ranges.emplace_back(traversal_address, alloc_size);
+        }
+
+        if (end_address <= vma_end_address) {
+            break;
+        }
+
+        traversal_address = vma_end;
+        iter = std::next(iter);
+    }
+
+    physical_memory_used += size - mapped_size;
+
+    return RESULT_SUCCESS;
+}
+
+ResultCode VMManager::UnmapPhysicalMemory(VAddr address, std::size_t size) {
+    const auto unmap_size_result = SizeOfPhysicalMemoryBlocksToUnmap(address, size);
+    if (unmap_size_result.Failed()) {
+        return unmap_size_result.Code();
+    }
+
+    // Nothing to unmap, so we can just return
+    const std::size_t unmap_size = *unmap_size_result;
+    if (unmap_size == 0) {
+        return RESULT_SUCCESS;
+    }
+
+    auto iter = FindVMA(address);
+    ASSERT(iter != vma_map.cend());
+
+    std::vector<std::tuple<VAddr, u64, VMAPermission, MemoryAttribute>> unmapped_ranges;
+    const VAddr end_address = address + size - 1;
+    VAddr traversal_address = address;
+
+    while (true) {
+        const auto& vma = iter->second;
+
+        const auto range_size = vma.SizeRemainingFromAddress(traversal_address).value();
+        const VAddr vma_end = traversal_address + range_size;
+        const VAddr vma_end_address = vma_end - 1;
+        const VMAPermission vma_permissions = vma.permissions;
+        const MemoryAttribute vma_attribute = vma.attribute;
+        const auto dealloc_size =
+            std::min(vma_end - traversal_address, end_address - traversal_address + 1);
+
+        if (vma.state == MemoryState::Heap) {
+            const auto unmap_result = UnmapRange(traversal_address, dealloc_size);
+
+            // If an unmapping operation fails, all regions that were
+            // previously unmapped as part of this operation need to be remapped.
+            if (unmap_result.IsError()) {
+                for (const auto& [remap_address, remap_size, remap_perms, remap_attribute] :
+                     unmapped_ranges) {
+                    auto remap_result =
+                        MapMemoryBlock(remap_address, std::make_shared<std::vector<u8>>(remap_size),
+                                       0, remap_size, MemoryState::Heap);
+
+                    DEBUG_ASSERT(remap_result.Succeeded());
+
+                    StripIterConstness(*remap_result)->second.attribute = remap_attribute;
+                    Reprotect(*remap_result, remap_perms);
+                }
+
+                return unmap_result;
+            }
+
+            iter = FindVMA(traversal_address + dealloc_size);
+            unmapped_ranges.emplace_back(traversal_address, dealloc_size, vma_permissions,
+                                         vma_attribute);
+        }
+
+        if (end_address <= vma_end_address) {
+            break;
+        }
+
+        traversal_address += dealloc_size;
+    }
+
+    physical_memory_used -= unmap_size;
+
+    return RESULT_SUCCESS;
+}
+
 void VMManager::RefreshMemoryBlockMappings(const std::vector<u8>* block) {
     // If this ever proves to have a noticeable performance impact, allow users of the function to
     // specify a specific range of addresses to limit the scan to.
@@ -756,6 +899,81 @@ VMManager::CheckResults VMManager::CheckRangeState(VAddr address, u64 size, Memo
 
     return MakeResult(
         std::make_tuple(initial_state, initial_permissions, initial_attributes & ~ignore_mask));
+}
+
+ResultVal<std::size_t> VMManager::SizeOfAllocatedVMAsInRange(VAddr address,
+                                                             std::size_t size) const {
+    auto iter = FindVMA(address);
+
+    if (iter == vma_map.cend()) {
+        return MakeResult(std::size_t{0});
+    }
+
+    VAddr traversal_address = address;
+    const VAddr end_address = address + size - 1;
+    std::size_t total_size = 0;
+
+    while (true) {
+        const auto& vma = iter->second;
+        const VAddr vma_end = vma.base + vma.size;
+        const VAddr vma_end_address = vma_end - 1;
+
+        if (end_address <= vma_end_address) {
+            if (vma.type != VMAType::Free) {
+                total_size += end_address - traversal_address + 1;
+            }
+
+            break;
+        }
+
+        if (vma.type != VMAType::Free) {
+            total_size += vma_end - traversal_address;
+        }
+
+        traversal_address = vma_end;
+        iter = std::next(iter);
+    }
+
+    return MakeResult(total_size);
+}
+
+ResultVal<std::size_t> VMManager::SizeOfPhysicalMemoryBlocksToUnmap(VAddr address,
+                                                                    std::size_t size) const {
+    auto iter = FindVMA(address);
+
+    if (iter == vma_map.cend()) {
+        return MakeResult(std::size_t{0});
+    }
+
+    VAddr traversal_address = address;
+    std::size_t total_size = 0;
+    const auto end_address = address + size - 1;
+
+    while (true) {
+        const auto& vma = iter->second;
+        const VAddr vma_end = vma.base + vma.size;
+        const VAddr vma_end_address = vma_end - 1;
+
+        if (vma.state != MemoryState::Heap && vma.type != VMAType::Free) {
+            return ERR_INVALID_ADDRESS_STATE;
+        }
+
+        if (end_address <= vma_end_address) {
+            if (vma.state == MemoryState::Heap) {
+                total_size += (end_address - traversal_address) + 1;
+            }
+            break;
+        }
+
+        if (vma.state == MemoryState::Heap) {
+            total_size += vma_end - traversal_address;
+        }
+
+        traversal_address = vma_end;
+        iter = std::next(iter);
+    }
+
+    return MakeResult(total_size);
 }
 
 u64 VMManager::GetTotalMemoryUsage() const {

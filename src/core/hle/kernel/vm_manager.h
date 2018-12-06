@@ -303,6 +303,15 @@ struct VirtualMemoryArea {
     PAddr paddr = 0;
     Common::MemoryHookPointer mmio_handler = nullptr;
 
+    /// If the address lies within this VMA, returns the size left before the
+    /// end of this VMA. If the given address doesn't lie within the VMA, then
+    /// an empty optional value is returned.
+    ///
+    /// For example, given a VMA 100 bytes long. If '10' was given as the
+    /// start address, then this would return 90.
+    ///
+    std::optional<u64> SizeRemainingFromAddress(VAddr address) const;
+
     /// Tests if this area can be merged to the right with `next`.
     bool CanBeMergedWith(const VirtualMemoryArea& next) const;
 };
@@ -488,6 +497,31 @@ public:
     ///
     ResultCode SetMemoryAttribute(VAddr address, u64 size, MemoryAttribute mask,
                                   MemoryAttribute attribute);
+
+    /// Maps heap memory using the process-specific memory pool.
+    ///
+    /// @note If this operation fails, all regions that were allocated
+    ///       through this call prior to the failure will be unmapped.
+    ///       @p
+    ///       In other words if a call like:
+    ///          MapPhysicalMemory(0x80000000, 0x4000) is executed,
+    ///       and three blocks need to be allocated to satisfy this
+    ///       set of arguments, and the third allocation fails, the
+    ///       entire operation will roll back state to how it was
+    ///       before calling this.
+    ///
+    ResultCode MapPhysicalMemory(VAddr address, std::size_t size);
+
+    /// Unmaps heap memory from the process-specific memory pool.
+    ///
+    /// @note If this operation fails to unmap a region in the
+    ///       requested range, and previous other regions were
+    ///       unmapped in the process of the operation up until
+    ///       that point, then it will rollback and remap all of
+    ///       the memory regions as they were before the operation
+    ///       took place in a manner similar to MapPhysicalMemory.
+    ///
+    ResultCode UnmapPhysicalMemory(VAddr address, std::size_t size);
 
     /**
      * Scans all VMAs and updates the page table range of any that use the given vector as backing
@@ -676,6 +710,10 @@ private:
                                  MemoryAttribute attribute_mask, MemoryAttribute attribute,
                                  MemoryAttribute ignore_mask) const;
 
+    // TODO: Document these
+    ResultVal<std::size_t> SizeOfAllocatedVMAsInRange(VAddr address, std::size_t size) const;
+    ResultVal<std::size_t> SizeOfPhysicalMemoryBlocksToUnmap(VAddr address, std::size_t size) const;
+
     /**
      * A map covering the entirety of the managed address space, keyed by the `base` field of each
      * VMA. It must always be modified by splitting or merging VMAs, so that the invariant
@@ -716,6 +754,8 @@ private:
     // The end of the currently allocated heap. This is not an inclusive
     // end of the range. This is essentially 'base_address + current_size'.
     VAddr heap_end = 0;
+
+    u64 physical_memory_used = 0;
 
     Core::System& system;
 };
