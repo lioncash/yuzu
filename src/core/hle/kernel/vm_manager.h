@@ -556,11 +556,14 @@ public:
     /// Gets the end address of the ASLR region.
     VAddr GetASLRRegionEndAddress() const;
 
-    /// Gets the size of the ASLR region
-    u64 GetASLRRegionSize() const;
-
     /// Determines whether or not the specified address range is within the ASLR region.
     bool IsWithinASLRRegion(VAddr address, u64 size) const;
+
+    /// Determines whether or not the specified address range is within the reserved map region.
+    bool IsWithinReservedRegion(VAddr address, u64 size) const;
+
+    /// Gets the size of the ASLR region
+    u64 GetASLRRegionSize() const;
 
     /// Gets the base address of the code region.
     VAddr GetCodeRegionBaseAddress() const;
@@ -628,6 +631,9 @@ public:
 
     /// Determines if the given address range is within the TLS IO region.
     bool IsWithinTLSIORegion(VAddr address, u64 size) const;
+
+    /// Gets the total memory allocated via MapPhysicalMemory in bytes.
+    u64 GetPhysicalMemoryUsage() const;
 
     /// Each VMManager has its own page table, which is set as the main one when the owning process
     /// is scheduled.

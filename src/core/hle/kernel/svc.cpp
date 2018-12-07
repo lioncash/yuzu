@@ -320,6 +320,61 @@ static ResultCode UnmapMemory(Core::System& system, VAddr dst_addr, VAddr src_ad
     return vm_manager.UnmapRange(dst_addr, size);
 }
 
+static ResultCode MapPhysicalMemory(Core::System& system, VAddr address, u64 size) {
+    LOG_DEBUG(Kernel_SVC, "called. Address={:016X}, Size={:016X}", address, size);
+
+    if (!Common::Is4KBAligned(address)) {
+        return ERR_INVALID_ADDRESS;
+    }
+
+    if (size == 0 || !Common::Is4KBAligned(size)) {
+        return ERR_INVALID_SIZE;
+    }
+
+    if (!IsValidAddressRange(address, size)) {
+        return ERR_INVALID_MEMORY_RANGE;
+    }
+
+    auto* const current_process = system.Kernel().CurrentProcess();
+    if (current_process->GetExtraResourceSize() == 0) {
+        return ERR_INVALID_STATE;
+    }
+
+    auto& vm_manager = current_process->VMManager();
+    if (!vm_manager.IsWithinReservedRegion(address, size)) {
+        return ERR_INVALID_MEMORY_RANGE;
+    }
+
+    return vm_manager.MapPhysicalMemory(address, size);
+}
+
+static ResultCode UnmapPhysicalMemory(Core::System& system, VAddr address, u64 size) {
+    LOG_DEBUG(Kernel_SVC, "called. Address={:016X}, Size={:016X}", address, size);
+    if (!Common::Is4KBAligned(address)) {
+        return ERR_INVALID_ADDRESS;
+    }
+
+    if (size == 0 || !Common::Is4KBAligned(size)) {
+        return ERR_INVALID_SIZE;
+    }
+
+    if (!IsValidAddressRange(address, size)) {
+        return ERR_INVALID_MEMORY_RANGE;
+    }
+
+    auto* const current_process = system.Kernel().CurrentProcess();
+    if (current_process->GetExtraResourceSize() == 0) {
+        return ERR_INVALID_STATE;
+    }
+
+    auto& vm_manager = current_process->VMManager();
+    if (!vm_manager.IsWithinReservedRegion(address, size)) {
+        return ERR_INVALID_MEMORY_RANGE;
+    }
+
+    return vm_manager.UnmapPhysicalMemory(address, size);
+}
+
 /// Connect to an OS service given the port name, returns the handle to the port to out
 static ResultCode ConnectToNamedPort(Core::System& system, Handle* out_handle,
                                      VAddr port_name_address) {
@@ -723,8 +778,8 @@ static ResultCode GetInfo(Core::System& system, u64* result, u64 info_id, u64 ha
         NewMapRegionBaseAddr = 14,
         NewMapRegionSize = 15,
         // 3.0.0+
-        IsVirtualAddressMemoryEnabled = 16,
-        PersonalMmHeapUsage = 17,
+        ExtraResourceSize = 16,
+        ExtraResourceUsage = 17,
         TitleId = 18,
         // 4.0.0+
         PrivilegedProcessId = 19,
@@ -748,8 +803,8 @@ static ResultCode GetInfo(Core::System& system, u64* result, u64 info_id, u64 ha
     case GetInfoType::NewMapRegionSize:
     case GetInfoType::TotalMemoryUsage:
     case GetInfoType::TotalPhysicalMemoryUsed:
-    case GetInfoType::IsVirtualAddressMemoryEnabled:
-    case GetInfoType::PersonalMmHeapUsage:
+    case GetInfoType::ExtraResourceSize:
+    case GetInfoType::ExtraResourceUsage:
     case GetInfoType::TitleId:
     case GetInfoType::UserExceptionContextAddr: {
         if (info_sub_id != 0) {
@@ -812,8 +867,12 @@ static ResultCode GetInfo(Core::System& system, u64* result, u64 info_id, u64 ha
             *result = process->GetTotalPhysicalMemoryUsed();
             return RESULT_SUCCESS;
 
-        case GetInfoType::IsVirtualAddressMemoryEnabled:
-            *result = process->IsVirtualMemoryEnabled();
+        case GetInfoType::ExtraResourceSize:
+            *result = process->GetExtraResourceSize();
+            return RESULT_SUCCESS;
+
+        case GetInfoType::ExtraResourceUsage:
+            *result = process->VMManager().GetPhysicalMemoryUsage();
             return RESULT_SUCCESS;
 
         case GetInfoType::TitleId:
@@ -2285,8 +2344,8 @@ static const FunctionDef SVC_Table[] = {
     {0x29, SvcWrap<GetInfo>, "GetInfo"},
     {0x2A, nullptr, "FlushEntireDataCache"},
     {0x2B, nullptr, "FlushDataCache"},
-    {0x2C, nullptr, "MapPhysicalMemory"},
-    {0x2D, nullptr, "UnmapPhysicalMemory"},
+    {0x2C, SvcWrap<MapPhysicalMemory>, "MapPhysicalMemory"},
+    {0x2D, SvcWrap<UnmapPhysicalMemory>, "UnmapPhysicalMemory"},
     {0x2E, nullptr, "GetFutureThreadInfo"},
     {0x2F, nullptr, "GetLastThreadInfo"},
     {0x30, SvcWrap<GetResourceLimitLimitValue>, "GetResourceLimitLimitValue"},

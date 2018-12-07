@@ -291,7 +291,7 @@ ResultVal<VAddr> VMManager::SetHeapSize(u64 size) {
 
     // If necessary, expand backing vector to cover new heap extents in
     // the case of allocating. Otherwise, shrink the backing memory,
-    // if a smaller heap has been requested.
+    // if a smaller heap has been reRquested.
     const u64 old_heap_size = GetCurrentHeapSize();
     if (size > old_heap_size) {
         const u64 alloc_size = size - old_heap_size;
@@ -508,8 +508,7 @@ ResultCode VMManager::MapPhysicalMemory(VAddr address, std::size_t size) {
                 return map_result.Code();
             }
 
-            iter = Reprotect(*map_result, VMAPermission::ReadWrite);
-
+            iter = *map_result;
             allocated_ranges.emplace_back(traversal_address, alloc_size);
         }
 
@@ -1034,6 +1033,14 @@ bool VMManager::IsWithinASLRRegion(VAddr begin, u64 size) const {
     return true;
 }
 
+bool VMManager::IsWithinReservedRegion(VAddr address, u64 size) const {
+    if (!IsWithinAddressSpace(address, size)) {
+        return false;
+    }
+
+    return IsWithinMapRegion(address, size);
+}
+
 VAddr VMManager::GetCodeRegionBaseAddress() const {
     return code_region_base;
 }
@@ -1120,6 +1127,10 @@ u64 VMManager::GetTLSIORegionSize() const {
 bool VMManager::IsWithinTLSIORegion(VAddr address, u64 size) const {
     return IsInsideAddressRange(address, size, GetTLSIORegionBaseAddress(),
                                 GetTLSIORegionEndAddress());
+}
+
+u64 VMManager::GetPhysicalMemoryUsage() const {
+    return physical_memory_used;
 }
 
 } // namespace Kernel

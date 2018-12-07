@@ -67,6 +67,10 @@ u8 ProgramMetadata::GetMainThreadCore() const {
     return npdm_header.main_thread_cpu;
 }
 
+u32 ProgramMetadata::GetExtraResourceSize() const {
+    return npdm_header.extra_resource_size;
+}
+
 u32 ProgramMetadata::GetMainThreadStackSize() const {
     return npdm_header.main_stack_size;
 }
@@ -87,6 +91,7 @@ void ProgramMetadata::Print() const {
     LOG_DEBUG(Service_FS, "Magic:                  {:.4}", npdm_header.magic.data());
     LOG_DEBUG(Service_FS, "Main thread priority:   0x{:02X}", npdm_header.main_thread_priority);
     LOG_DEBUG(Service_FS, "Main thread core:       {}", npdm_header.main_thread_cpu);
+    LOG_DEBUG(Service_FS, "Extra resource size:    0x{:08X}", npdm_header.extra_resource_size);
     LOG_DEBUG(Service_FS, "Main thread stack size: 0x{:X} bytes", npdm_header.main_stack_size);
     LOG_DEBUG(Service_FS, "Process category:       {}", npdm_header.process_category);
     LOG_DEBUG(Service_FS, "Flags:                  0x{:02X}", npdm_header.flags);

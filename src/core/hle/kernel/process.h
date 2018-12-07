@@ -163,10 +163,6 @@ public:
         return capabilities.GetPriorityMask();
     }
 
-    u32 IsVirtualMemoryEnabled() const {
-        return is_virtual_address_memory_enabled;
-    }
-
     /// Whether this process is an AArch64 or AArch32 process.
     bool Is64BitProcess() const {
         return is_64bit_process;
@@ -180,6 +176,12 @@ public:
     /// Updates the total running time, adding the given ticks to it.
     void UpdateCPUTimeTicks(u64 ticks) {
         total_process_running_time_ticks += ticks;
+    }
+
+    /// Gets the total amount of memory that can be allocated via svcMapPhysicalMemory
+    /// for this particular process instance in bytes.
+    u64 GetExtraResourceSize() const {
+        return extra_resource_size;
     }
 
     /// Gets 8 bytes of random data for svcGetInfo RandomEntropy
@@ -287,7 +289,6 @@ private:
 
     /// The ideal CPU core for this process, threads are scheduled on this core by default.
     u8 ideal_core = 0;
-    u32 is_virtual_address_memory_enabled = 0;
 
     /// The Thread Local Storage area is allocated as processes create threads,
     /// each TLS area is 0x200 bytes, so one page (0x1000) is split up in 8 parts, and each part
@@ -298,6 +299,9 @@ private:
 
     /// Contains the parsed process capability descriptors.
     ProcessCapabilities capabilities;
+
+    /// The extra resource memory size in bytes.
+    u64 extra_resource_size = 0;
 
     /// Whether or not this process is AArch64, or AArch32.
     /// By default, we currently assume this is true, unless otherwise
