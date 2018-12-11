@@ -192,6 +192,10 @@ public:
     /// Retrieves the total physical memory used by this process in bytes.
     u64 GetTotalPhysicalMemoryUsed() const;
 
+    /// Retrieves the total physical memory used by this process, in bytes,
+    /// without including the extra resource memory size.
+    u64 GetTotalPhysicalMemoryUsedWithoutMmHeap() const;
+
     /// Gets the list of all threads created with this process as their owner.
     const std::list<const Thread*>& GetThreadList() const {
         return thread_list;

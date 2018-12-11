@@ -771,7 +771,7 @@ static ResultCode GetInfo(Core::System& system, u64* result, u64 info_id, u64 ha
         RegisterResourceLimit = 9,
         IdleTickCount = 10,
         RandomEntropy = 11,
-        PerformanceCounter = 0xF0000002,
+        ThreadTickCount = 0xF0000002,
         // 2.0.0+
         ASLRRegionBaseAddr = 12,
         ASLRRegionSize = 13,
@@ -785,7 +785,9 @@ static ResultCode GetInfo(Core::System& system, u64* result, u64 info_id, u64 ha
         PrivilegedProcessId = 19,
         // 5.0.0+
         UserExceptionContextAddr = 20,
-        ThreadTickCount = 0xF0000002,
+        // 6.0.0+
+        TotalMemoryAvailableWithoutMmHeap = 21,
+        TotalMemoryUsedWithoutMmHeap = 22,
     };
 
     const auto info_id_type = static_cast<GetInfoType>(info_id);
@@ -806,7 +808,9 @@ static ResultCode GetInfo(Core::System& system, u64* result, u64 info_id, u64 ha
     case GetInfoType::ExtraResourceSize:
     case GetInfoType::ExtraResourceUsage:
     case GetInfoType::TitleId:
-    case GetInfoType::UserExceptionContextAddr: {
+    case GetInfoType::UserExceptionContextAddr:
+    case GetInfoType::TotalMemoryAvailableWithoutMmHeap:
+    case GetInfoType::TotalMemoryUsedWithoutMmHeap: {
         if (info_sub_id != 0) {
             return ERR_INVALID_ENUM_VALUE;
         }
@@ -872,7 +876,7 @@ static ResultCode GetInfo(Core::System& system, u64* result, u64 info_id, u64 ha
             return RESULT_SUCCESS;
 
         case GetInfoType::ExtraResourceUsage:
-            *result = process->VMManager().GetPhysicalMemoryUsage();
+            *result = process->VMManager().GetMapPhysicalMemoryUsage();
             return RESULT_SUCCESS;
 
         case GetInfoType::TitleId:
@@ -883,6 +887,14 @@ static ResultCode GetInfo(Core::System& system, u64* result, u64 info_id, u64 ha
             LOG_WARNING(Kernel_SVC,
                         "(STUBBED) Attempted to query user exception context address, returned 0");
             *result = 0;
+            return RESULT_SUCCESS;
+
+        case GetInfoType::TotalMemoryAvailableWithoutMmHeap:
+            *result = process->VMManager().GetTotalMemoryUsage();
+            return RESULT_SUCCESS;
+
+        case GetInfoType::TotalMemoryUsedWithoutMmHeap:
+            *result = process->GetTotalPhysicalMemoryUsedWithoutMmHeap();
             return RESULT_SUCCESS;
 
         default:

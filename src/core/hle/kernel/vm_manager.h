@@ -586,6 +586,11 @@ public:
     /// Gets the total size of the heap region in bytes.
     u64 GetHeapRegionSize() const;
 
+    /// Gets the total size of the memory regions that can be designated
+    /// as heap regions. This includes the heap region itself, and the
+    /// total amount of memory that can be allocated by MapPhysicalMemory.
+    u64 GetTotalHeapSize() const;
+
     /// Gets the total size of the current heap in bytes.
     ///
     /// @note This is the current allocated heap size, not the size
@@ -633,7 +638,7 @@ public:
     bool IsWithinTLSIORegion(VAddr address, u64 size) const;
 
     /// Gets the total memory allocated via MapPhysicalMemory in bytes.
-    u64 GetPhysicalMemoryUsage() const;
+    u64 GetMapPhysicalMemoryUsage() const;
 
     /// Each VMManager has its own page table, which is set as the main one when the owning process
     /// is scheduled.
@@ -761,7 +766,9 @@ private:
     // end of the range. This is essentially 'base_address + current_size'.
     VAddr heap_end = 0;
 
-    u64 physical_memory_used = 0;
+    // Total amount of memory allocated for use via MapPhysicalMemory in bytes.
+    // Note: This will decrement when UnmapPhysicalMemory is called.
+    u64 map_physical_memory_used = 0;
 
     Core::System& system;
 };

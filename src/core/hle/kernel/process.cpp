@@ -73,7 +73,16 @@ SharedPtr<ResourceLimit> Process::GetResourceLimit() const {
 }
 
 u64 Process::GetTotalPhysicalMemoryUsed() const {
-    return vm_manager.GetCurrentHeapSize() + main_thread_stack_size + code_memory_size;
+    // TODO: Distinguish between memory region types this process was
+    //       created with. If this is using the applet memory region,
+    //       then zero should be returned instead of the extra resource size.
+
+    return vm_manager.GetTotalHeapSize() + main_thread_stack_size + code_memory_size +
+           extra_resource_size;
+}
+
+u64 Process::GetTotalPhysicalMemoryUsedWithoutMmHeap() const {
+    return GetTotalPhysicalMemoryUsed() - extra_resource_size;
 }
 
 void Process::RegisterThread(const Thread* thread) {
