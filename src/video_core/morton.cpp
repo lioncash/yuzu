@@ -276,12 +276,10 @@ static u32 MortonInterleave128(u32 x, u32 y) {
 static u32 GetMortonOffset128(u32 x, u32 y, u32 bytes_per_pixel) {
     // Calculates the offset of the position of the pixel in Morton order
     // Framebuffer images are split into 128x128 tiles.
+    const u32 i = MortonInterleave128(x, y);
 
     constexpr u32 block_height = 128;
     const u32 coarse_x = x & ~127;
-
-    const u32 i = MortonInterleave128(x, y);
-
     const u32 offset = coarse_x * block_height;
 
     return (i + offset) * bytes_per_pixel;
