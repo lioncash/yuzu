@@ -194,8 +194,8 @@ static MortonCopyFn GetSwizzleFunction(MortonSwizzleMode mode, Surface::PixelFor
     UNREACHABLE();
 }
 
+/// 128x128 Z-Order coordinate from 2D coordinates.
 static u32 MortonInterleave128(u32 x, u32 y) {
-    // 128x128 Z-Order coordinate from 2D coordinates
     static constexpr u32 xlut[] = {
         0x0000, 0x0001, 0x0002, 0x0003, 0x0008, 0x0009, 0x000a, 0x000b, 0x0040, 0x0041, 0x0042,
         0x0043, 0x0048, 0x0049, 0x004a, 0x004b, 0x0800, 0x0801, 0x0802, 0x0803, 0x0808, 0x0809,
@@ -273,9 +273,9 @@ static u32 MortonInterleave128(u32 x, u32 y) {
     return xlut[x % 128] + ylut[y % 128];
 }
 
+/// Calculates the offset of the position of the pixel in Morton order.
+/// Framebuffer images are split into 128x128 tiles.
 static u32 GetMortonOffset128(u32 x, u32 y, u32 bytes_per_pixel) {
-    // Calculates the offset of the position of the pixel in Morton order
-    // Framebuffer images are split into 128x128 tiles.
     const u32 i = MortonInterleave128(x, y);
 
     constexpr u32 block_height = 128;
