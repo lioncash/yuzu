@@ -75,7 +75,7 @@ public:
     }
 
 private:
-    Impl() {
+    Impl() : time_origin{std::chrono::steady_clock::now()} {
         backend_thread = std::thread([&] {
             Entry entry;
             auto write_logs = [&](Entry& e) {
@@ -115,8 +115,6 @@ private:
         using std::chrono::duration_cast;
         using std::chrono::steady_clock;
 
-        static steady_clock::time_point time_origin = steady_clock::now();
-
         Entry entry;
         entry.timestamp =
             duration_cast<std::chrono::microseconds>(steady_clock::now() - time_origin);
@@ -134,6 +132,7 @@ private:
     std::thread backend_thread;
     std::vector<std::unique_ptr<Backend>> backends;
     Common::MPSCQueue<Log::Entry> message_queue;
+    std::chrono::steady_clock::time_point time_origin;
     Filter filter;
 };
 
