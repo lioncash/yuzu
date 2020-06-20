@@ -4,6 +4,7 @@
 
 #include "common/assert.h"
 #include "core/core.h"
+#include "core/hle/kernel/errors.h"
 #include "core/hle/kernel/kernel.h"
 #include "core/hle/kernel/memory/page_table.h"
 #include "core/hle/kernel/shared_memory.h"
@@ -52,6 +53,18 @@ ResultCode SharedMemory::Map(Process& target_process, VAddr address, std::size_t
 
     return target_process.PageTable().MapPages(address, page_list, Memory::MemoryState::Shared,
                                                permissions);
+}
+
+ResultCode SharedMemory::Unmap(Process& target_process, VAddr address, u64 unmap_size) {
+    if (unmap_size != size) {
+        LOG_ERROR(Kernel,
+                  "Invalid size passed to Unmap. Size must be equal to the size of the "
+                  "memory managed. Shared memory size=0x{:016X}, Unmap size=0x{:016X}",
+                  size, unmap_size);
+        return ERR_INVALID_SIZE;
+    }
+
+    return target_process.PageTable().UnmapMemory(address, size);
 }
 
 } // namespace Kernel

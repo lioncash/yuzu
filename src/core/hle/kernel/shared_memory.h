@@ -54,6 +54,20 @@ public:
                    Memory::MemoryPermission permissions);
 
     /**
+     * Unmaps a shared memory block from the specified address in system memory
+     *
+     * @param target_process Process from which to unmap the memory block.
+     * @param address        Address in system memory where the shared memory block is mapped.
+     * @param unmap_size     The amount of bytes to unmap from this shared memory instance.
+     *
+     * @return Result code of the unmap operation
+     *
+     * @pre The given size to unmap must be the same size as the amount of memory managed by
+     *      the SharedMemory instance itself, otherwise ERR_INVALID_SIZE will be returned.
+     */
+    ResultCode Unmap(Process& target_process, VAddr address, u64 unmap_size);
+
+    /**
      * Gets a pointer to the shared memory block
      * @param offset Offset from the start of the shared memory block to get pointer
      * @return A pointer to the shared memory block from the specified offset

@@ -1187,6 +1187,50 @@ static ResultCode MapSharedMemory(Core::System& system, Handle shared_memory_han
     return shared_memory->Map(*current_process, addr, size, permission_type);
 }
 
+static ResultCode UnmapSharedMemory(Core::System& system, Handle shared_memory_handle, VAddr addr,
+                                    u64 size) {
+    LOG_WARNING(Kernel_SVC, "called, shared_memory_handle=0x{:08X}, addr=0x{:X}, size=0x{:X}",
+                shared_memory_handle, addr, size);
+
+    if (!Common::Is4KBAligned(addr)) {
+        LOG_ERROR(Kernel_SVC, "Address is not aligned to 4KB, addr=0x{:016X}", addr);
+        return ERR_INVALID_ADDRESS;
+    }
+
+    if (size == 0) {
+        LOG_ERROR(Kernel_SVC, "Size is 0");
+        return ERR_INVALID_SIZE;
+    }
+
+    if (!Common::Is4KBAligned(size)) {
+        LOG_ERROR(Kernel_SVC, "Size is not aligned to 4KB, size=0x{:016X}", size);
+        return ERR_INVALID_SIZE;
+    }
+
+    if (!IsValidAddressRange(addr, size)) {
+        LOG_ERROR(Kernel_SVC, "Region is not a valid address range, addr=0x{:016X}, size=0x{:016X}",
+                  addr, size);
+        return ERR_INVALID_ADDRESS_STATE;
+    }
+
+    auto* const current_process = system.Kernel().CurrentProcess();
+    auto shared_memory = current_process->GetHandleTable().Get<SharedMemory>(shared_memory_handle);
+    if (!shared_memory) {
+        LOG_ERROR(Kernel_SVC, "Shared memory does not exist, shared_memory_handle=0x{:08X}",
+                  shared_memory_handle);
+        return ERR_INVALID_HANDLE;
+    }
+
+    const auto& vm_manager = current_process->PageTable();
+    if (!vm_manager.IsInsideASLRRegion(addr, size)) {
+        LOG_ERROR(Kernel_SVC, "Region is not within the ASLR region. addr=0x{:016X}, size={:016X}",
+                  addr, size);
+        return ERR_INVALID_MEMORY_RANGE;
+    }
+
+    return shared_memory->Unmap(*current_process, addr, size);
+}
+
 static ResultCode QueryProcessMemory(Core::System& system, VAddr memory_info_address,
                                      VAddr page_info_address, Handle process_handle,
                                      VAddr address) {
@@ -2297,7 +2341,7 @@ static const FunctionDef SVC_Table_64[] = {
     {0x11, SvcWrap64<SignalEvent>, "SignalEvent"},
     {0x12, SvcWrap64<ClearEvent>, "ClearEvent"},
     {0x13, SvcWrap64<MapSharedMemory>, "MapSharedMemory"},
-    {0x14, nullptr, "UnmapSharedMemory"},
+    {0x14, SvcWrap64<UnmapSharedMemory>, "UnmapSharedMemory"},
     {0x15, SvcWrap64<CreateTransferMemory>, "CreateTransferMemory"},
     {0x16, SvcWrap64<CloseHandle>, "CloseHandle"},
     {0x17, SvcWrap64<ResetSignal>, "ResetSignal"},
