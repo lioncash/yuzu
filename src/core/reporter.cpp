@@ -74,7 +74,7 @@ json GetReportCommonData(u64 title_id, ResultCode result, const std::string& tim
     };
 
     if (user_id.has_value()) {
-        out["user_id"] = fmt::format("{:016X}{:016X}", (*user_id)[1], (*user_id)[0]);
+        out.emplace("user_id", fmt::format("{:016X}{:016X}", (*user_id)[1], (*user_id)[0]));
     }
 
     return out;
@@ -93,17 +93,17 @@ json GetProcessorStateData(const std::string& architecture, u64 entry_point, u64
 
     auto registers_out = json::object();
     for (std::size_t i = 0; i < registers.size(); ++i) {
-        registers_out[fmt::format("X{:02d}", i)] = fmt::format("{:016X}", registers[i]);
+        registers_out.emplace(fmt::format("X{:02d}", i), fmt::format("{:016X}", registers[i]));
     }
 
-    out["registers"] = std::move(registers_out);
+    out.emplace("registers", std::move(registers_out));
 
     if (backtrace.has_value()) {
         auto backtrace_out = json::array();
         for (const auto& entry : *backtrace) {
             backtrace_out.push_back(fmt::format("{:016X}", entry));
         }
-        out["backtrace"] = std::move(backtrace_out);
+        out.emplace("backtrace", std::move(backtrace_out));
     }
 
     return out;
@@ -121,7 +121,7 @@ json GetProcessorStateDataAuto(Core::System& system) {
                                  context.pstate, context.cpu_registers);
 }
 
-json GetBacktraceData(Core::System& system) {
+json GetBacktraceData(const Core::System& system) {
     auto out = json::array();
     const auto& backtrace{system.CurrentArmInterface().GetBacktrace()};
     for (const auto& entry : backtrace) {
@@ -140,10 +140,10 @@ json GetBacktraceData(Core::System& system) {
 json GetFullDataAuto(const std::string& timestamp, u64 title_id, Core::System& system) {
     json out;
 
-    out["yuzu_version"] = GetYuzuVersionData();
-    out["report_common"] = GetReportCommonData(title_id, RESULT_SUCCESS, timestamp);
-    out["processor_state"] = GetProcessorStateDataAuto(system);
-    out["backtrace"] = GetBacktraceData(system);
+    out.emplace("yuzu_version", GetYuzuVersionData());
+    out.emplace("report_common", GetReportCommonData(title_id, RESULT_SUCCESS, timestamp));
+    out.emplace("processor_state", GetProcessorStateDataAuto(system));
+    out.emplace("backtrace", GetBacktraceData(system));
 
     return out;
 }
@@ -161,7 +161,7 @@ json GetHLEBufferDescriptorData(const std::vector<DescriptorType>& buffer,
         if constexpr (read_value) {
             std::vector<u8> data(desc.Size());
             memory.ReadBlock(desc.Address(), data.data(), desc.Size());
-            entry["data"] = Common::HexToString(data);
+            entry.emplace("data", Common::HexToString(data));
         }
 
         buffer_out.push_back(std::move(entry));
@@ -178,12 +178,16 @@ json GetHLERequestContextData(Kernel::HLERequestContext& ctx, Core::Memory::Memo
         cmd_buf.push_back(fmt::format("{:08X}", ctx.CommandBuffer()[i]));
     }
 
-    out["command_buffer"] = std::move(cmd_buf);
+    out.emplace("command_buffer", std::move(cmd_buf));
 
-    out["buffer_descriptor_a"] = GetHLEBufferDescriptorData<true>(ctx.BufferDescriptorA(), memory);
-    out["buffer_descriptor_b"] = GetHLEBufferDescriptorData<false>(ctx.BufferDescriptorB(), memory);
-    out["buffer_descriptor_c"] = GetHLEBufferDescriptorData<false>(ctx.BufferDescriptorC(), memory);
-    out["buffer_descriptor_x"] = GetHLEBufferDescriptorData<true>(ctx.BufferDescriptorX(), memory);
+    out.emplace("buffer_descriptor_a",
+                GetHLEBufferDescriptorData<true>(ctx.BufferDescriptorA(), memory));
+    out.emplace("buffer_descriptor_b",
+                GetHLEBufferDescriptorData<false>(ctx.BufferDescriptorB(), memory));
+    out.emplace("buffer_descriptor_c",
+                GetHLEBufferDescriptorData<false>(ctx.BufferDescriptorC(), memory));
+    out.emplace("buffer_descriptor_x",
+                GetHLEBufferDescriptorData<true>(ctx.BufferDescriptorX(), memory));
 
     return out;
 }
@@ -208,19 +212,19 @@ void Reporter::SaveCrashReport(u64 title_id, ResultCode result, u64 set_flags, u
     const auto timestamp = GetTimestamp();
     json out;
 
-    out["yuzu_version"] = GetYuzuVersionData();
-    out["report_common"] = GetReportCommonData(title_id, result, timestamp);
+    out.emplace("yuzu_version", GetYuzuVersionData());
+    out.emplace("report_common", GetReportCommonData(title_id, result, timestamp));
 
     auto proc_out = GetProcessorStateData(arch, entry_point, sp, pc, pstate, registers, backtrace);
-    proc_out["set_flags"] = fmt::format("{:016X}", set_flags);
-    proc_out["afsr0"] = fmt::format("{:016X}", afsr0);
-    proc_out["afsr1"] = fmt::format("{:016X}", afsr1);
-    proc_out["esr"] = fmt::format("{:016X}", esr);
-    proc_out["far"] = fmt::format("{:016X}", far);
-    proc_out["backtrace_size"] = fmt::format("{:08X}", backtrace_size);
-    proc_out["unknown_10"] = fmt::format("{:08X}", unk10);
+    proc_out.emplace("set_flags", fmt::format("{:016X}", set_flags));
+    proc_out.emplace("afsr0", fmt::format("{:016X}", afsr0));
+    proc_out.emplace("afsr1", fmt::format("{:016X}", afsr1));
+    proc_out.emplace("esr", fmt::format("{:016X}", esr));
+    proc_out.emplace("far", fmt::format("{:016X}", far));
+    proc_out.emplace("backtrace_size", fmt::format("{:08X}", backtrace_size));
+    proc_out.emplace("unknown_10", fmt::format("{:08X}", unk10));
 
-    out["processor_state"] = std::move(proc_out);
+    out.emplace("processor_state", std::move(proc_out));
 
     SaveToFile(std::move(out), GetPath("crash_report", title_id, timestamp));
 }
@@ -243,10 +247,10 @@ void Reporter::SaveSvcBreakReport(u32 type, bool signal_debugger, u64 info1, u64
     };
 
     if (resolved_buffer.has_value()) {
-        break_out["debug_buffer"] = Common::HexToString(*resolved_buffer);
+        break_out.emplace("debug_buffer", Common::HexToString(*resolved_buffer));
     }
 
-    out["svc_break"] = std::move(break_out);
+    out.emplace("svc_break", std::move(break_out));
 
     SaveToFile(std::move(out), GetPath("svc_break_report", title_id, timestamp));
 }
@@ -263,11 +267,11 @@ void Reporter::SaveUnimplementedFunctionReport(Kernel::HLERequestContext& ctx, u
     auto out = GetFullDataAuto(timestamp, title_id, system);
 
     auto function_out = GetHLERequestContextData(ctx, system.Memory());
-    function_out["command_id"] = command_id;
-    function_out["function_name"] = name;
-    function_out["service_name"] = service_name;
+    function_out.emplace("command_id", command_id);
+    function_out.emplace("function_name", name);
+    function_out.emplace("service_name", service_name);
 
-    out["function"] = std::move(function_out);
+    out.emplace("function", std::move(function_out));
 
     SaveToFile(std::move(out), GetPath("unimpl_func_report", title_id, timestamp));
 }
@@ -303,8 +307,8 @@ void Reporter::SaveUnimplementedAppletReport(
         interactive_out.push_back(Common::HexToString(data));
     }
 
-    out["applet_normal_data"] = std::move(normal_out);
-    out["applet_interactive_data"] = std::move(interactive_out);
+    out.emplace("applet_normal_data", std::move(normal_out));
+    out.emplace("applet_interactive_data", std::move(interactive_out));
 
     SaveToFile(std::move(out), GetPath("unimpl_applet_report", title_id, timestamp));
 }
@@ -318,8 +322,8 @@ void Reporter::SavePlayReport(PlayReportType type, u64 title_id, std::vector<std
     const auto timestamp = GetTimestamp();
     json out;
 
-    out["yuzu_version"] = GetYuzuVersionData();
-    out["report_common"] = GetReportCommonData(title_id, RESULT_SUCCESS, timestamp, user_id);
+    out.emplace("yuzu_version", GetYuzuVersionData());
+    out.emplace("report_common", GetReportCommonData(title_id, RESULT_SUCCESS, timestamp, user_id));
 
     auto data_out = json::array();
     for (const auto& d : data) {
@@ -327,11 +331,11 @@ void Reporter::SavePlayReport(PlayReportType type, u64 title_id, std::vector<std
     }
 
     if (process_id.has_value()) {
-        out["play_report_process_id"] = fmt::format("{:016X}", *process_id);
+        out.emplace("play_report_process_id", fmt::format("{:016X}", *process_id));
     }
 
-    out["play_report_type"] = fmt::format("{:02}", static_cast<u8>(type));
-    out["play_report_data"] = std::move(data_out);
+    out.emplace("play_report_type", fmt::format("{:02}", static_cast<u8>(type)));
+    out.emplace("play_report_data", std::move(data_out));
 
     SaveToFile(std::move(out), GetPath("play_report", title_id, timestamp));
 }
@@ -346,10 +350,10 @@ void Reporter::SaveErrorReport(u64 title_id, ResultCode result,
     const auto timestamp = GetTimestamp();
     json out;
 
-    out["yuzu_version"] = GetYuzuVersionData();
-    out["report_common"] = GetReportCommonData(title_id, result, timestamp);
-    out["processor_state"] = GetProcessorStateDataAuto(system);
-    out["backtrace"] = GetBacktraceData(system);
+    out.emplace("yuzu_version", GetYuzuVersionData());
+    out.emplace("report_common", GetReportCommonData(title_id, result, timestamp));
+    out.emplace("processor_state", GetProcessorStateDataAuto(system));
+    out.emplace("backtrace", GetBacktraceData(system));
 
     out["error_custom_text"] = {
         {"main", *custom_text_main},
@@ -367,42 +371,42 @@ void Reporter::SaveLogReport(u32 destination, std::vector<Service::LM::LogMessag
     const auto timestamp = GetTimestamp();
     json out;
 
-    out["yuzu_version"] = GetYuzuVersionData();
-    out["report_common"] =
-        GetReportCommonData(system.CurrentProcess()->GetTitleID(), RESULT_SUCCESS, timestamp);
+    out.emplace("yuzu_version", GetYuzuVersionData());
+    out.emplace("report_common", GetReportCommonData(system.CurrentProcess()->GetTitleID(),
+                                                     RESULT_SUCCESS, timestamp));
 
-    out["log_destination"] =
-        fmt::format("{}", static_cast<Service::LM::DestinationFlag>(destination));
+    out.emplace("log_destination",
+                fmt::format("{}", static_cast<Service::LM::DestinationFlag>(destination)));
 
     auto json_messages = json::array();
     std::transform(messages.begin(), messages.end(), std::back_inserter(json_messages),
                    [](const Service::LM::LogMessage& message) {
                        json out;
-                       out["is_head"] = fmt::format("{}", message.header.IsHeadLog());
-                       out["is_tail"] = fmt::format("{}", message.header.IsTailLog());
-                       out["pid"] = fmt::format("{:016X}", message.header.pid);
-                       out["thread_context"] =
-                           fmt::format("{:016X}", message.header.thread_context);
-                       out["payload_size"] = fmt::format("{:016X}", message.header.payload_size);
-                       out["flags"] = fmt::format("{:04X}", message.header.flags.Value());
-                       out["severity"] = fmt::format("{}", message.header.severity.Value());
-                       out["verbosity"] = fmt::format("{:02X}", message.header.verbosity);
+                       out.emplace("is_head", fmt::format("{}", message.header.IsHeadLog()));
+                       out.emplace("is_tail", fmt::format("{}", message.header.IsTailLog()));
+                       out.emplace("pid", fmt::format("{:016X}", message.header.pid));
+                       out.emplace("thread_context",
+                                   fmt::format("{:016X}", message.header.thread_context));
+                       out.emplace("payload_size", fmt::format("{:016X}", message.header.payload_size));
+                       out.emplace("flags", fmt::format("{:04X}", message.header.flags.Value()));
+                       out.emplace("severity", fmt::format("{}", message.header.severity.Value()));
+                       out.emplace("verbosity", fmt::format("{:02X}", message.header.verbosity));
 
                        auto fields = json::array();
                        std::transform(message.fields.begin(), message.fields.end(),
                                       std::back_inserter(fields), [](const auto& kv) {
                                           json out;
-                                          out["type"] = fmt::format("{}", kv.first);
-                                          out["data"] =
-                                              Service::LM::FormatField(kv.first, kv.second);
+                                          out.emplace("type", fmt::format("{}", kv.first));
+                                          out.emplace("data", Service::LM::FormatField(kv.first,
+                                                                                       kv.second));
                                           return out;
                                       });
 
-                       out["fields"] = std::move(fields);
+                       out.emplace("fields", std::move(fields));
                        return out;
                    });
 
-    out["log_messages"] = std::move(json_messages);
+    out.emplace("log_messages", std::move(json_messages));
 
     SaveToFile(std::move(out),
                GetPath("log_report", system.CurrentProcess()->GetTitleID(), timestamp));
@@ -410,18 +414,19 @@ void Reporter::SaveLogReport(u32 destination, std::vector<Service::LM::LogMessag
 
 void Reporter::SaveFilesystemAccessReport(Service::FileSystem::LogMode log_mode,
                                           std::string log_message) const {
-    if (!IsReportingEnabled())
+    if (!IsReportingEnabled()) {
         return;
+    }
 
     const auto timestamp = GetTimestamp();
     const auto title_id = system.CurrentProcess()->GetTitleID();
     json out;
 
-    out["yuzu_version"] = GetYuzuVersionData();
-    out["report_common"] = GetReportCommonData(title_id, RESULT_SUCCESS, timestamp);
+    out.emplace("yuzu_version", GetYuzuVersionData());
+    out.emplace("report_common", GetReportCommonData(title_id, RESULT_SUCCESS, timestamp));
 
-    out["log_mode"] = fmt::format("{:08X}", static_cast<u32>(log_mode));
-    out["log_message"] = std::move(log_message);
+    out.emplace("log_mode", fmt::format("{:08X}", static_cast<u32>(log_mode)));
+    out.emplace("log_message", std::move(log_message));
 
     SaveToFile(std::move(out), GetPath("filesystem_access_report", title_id, timestamp));
 }
