@@ -72,17 +72,17 @@ std::string ParamPackage::Serialize() const {
     return result;
 }
 
-std::string ParamPackage::Get(const std::string& key, const std::string& default_value) const {
+std::string ParamPackage::Get(std::string_view key, std::string_view default_value) const {
     auto pair = data.find(key);
     if (pair == data.end()) {
         LOG_DEBUG(Common, "key '{}' not found", key);
-        return default_value;
+        return std::string(default_value);
     }
 
     return pair->second;
 }
 
-int ParamPackage::Get(const std::string& key, int default_value) const {
+int ParamPackage::Get(std::string_view key, int default_value) const {
     auto pair = data.find(key);
     if (pair == data.end()) {
         LOG_DEBUG(Common, "key '{}' not found", key);
@@ -97,7 +97,7 @@ int ParamPackage::Get(const std::string& key, int default_value) const {
     }
 }
 
-float ParamPackage::Get(const std::string& key, float default_value) const {
+float ParamPackage::Get(std::string_view key, float default_value) const {
     auto pair = data.find(key);
     if (pair == data.end()) {
         LOG_DEBUG(Common, "key {} not found", key);
@@ -124,8 +124,8 @@ void ParamPackage::Set(const std::string& key, float value) {
     data.insert_or_assign(key, std::to_string(value));
 }
 
-bool ParamPackage::Has(const std::string& key) const {
-    return data.find(key) != data.end();
+bool ParamPackage::Has(std::string_view key) const {
+    return data.contains(key);
 }
 
 void ParamPackage::Erase(const std::string& key) {

@@ -6,6 +6,7 @@
 
 #include <initializer_list>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 
 namespace Common {
@@ -13,7 +14,21 @@ namespace Common {
 /// A string-based key-value container supporting serializing to and deserializing from a string
 class ParamPackage {
 public:
-    using DataType = std::unordered_map<std::string, std::string>;
+    struct StringHash {
+        using is_transparent = std::true_type;
+
+        size_t operator()(std::string_view txt) const noexcept {
+            return std::hash<std::string_view>{}(txt);
+        }
+    };
+    struct StringEqual {
+        using is_transparent = std::true_type;
+
+        bool operator()(std::string_view lhs, std::string_view rhs) const noexcept {
+            return lhs == rhs;
+        }
+    };
+    using DataType = std::unordered_map<std::string, std::string, StringHash, StringEqual>;
 
     ParamPackage() = default;
     explicit ParamPackage(const std::string& serialized);
@@ -25,13 +40,13 @@ public:
     ParamPackage& operator=(ParamPackage&& other) = default;
 
     [[nodiscard]] std::string Serialize() const;
-    [[nodiscard]] std::string Get(const std::string& key, const std::string& default_value) const;
-    [[nodiscard]] int Get(const std::string& key, int default_value) const;
-    [[nodiscard]] float Get(const std::string& key, float default_value) const;
+    [[nodiscard]] std::string Get(std::string_view key, std::string_view default_value) const;
+    [[nodiscard]] int Get(std::string_view key, int default_value) const;
+    [[nodiscard]] float Get(std::string_view key, float default_value) const;
     void Set(const std::string& key, std::string value);
     void Set(const std::string& key, int value);
     void Set(const std::string& key, float value);
-    [[nodiscard]] bool Has(const std::string& key) const;
+    [[nodiscard]] bool Has(std::string_view key) const;
     void Erase(const std::string& key);
     void Clear();
 
