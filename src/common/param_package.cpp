@@ -112,16 +112,16 @@ float ParamPackage::Get(std::string_view key, float default_value) const {
     }
 }
 
-void ParamPackage::Set(const std::string& key, std::string value) {
-    data.insert_or_assign(key, std::move(value));
+void ParamPackage::Set(std::string key, std::string value) {
+    data.insert_or_assign(std::move(key), std::move(value));
 }
 
-void ParamPackage::Set(const std::string& key, int value) {
-    data.insert_or_assign(key, std::to_string(value));
+void ParamPackage::Set(std::string key, int value) {
+    data.insert_or_assign(std::move(key), std::to_string(value));
 }
 
-void ParamPackage::Set(const std::string& key, float value) {
-    data.insert_or_assign(key, std::to_string(value));
+void ParamPackage::Set(std::string key, float value) {
+    data.insert_or_assign(std::move(key), std::to_string(value));
 }
 
 bool ParamPackage::Has(std::string_view key) const {

@@ -43,9 +43,9 @@ public:
     [[nodiscard]] std::string Get(std::string_view key, std::string_view default_value) const;
     [[nodiscard]] int Get(std::string_view key, int default_value) const;
     [[nodiscard]] float Get(std::string_view key, float default_value) const;
-    void Set(const std::string& key, std::string value);
-    void Set(const std::string& key, int value);
-    void Set(const std::string& key, float value);
+    void Set(std::string key, std::string value);
+    void Set(std::string key, int value);
+    void Set(std::string key, float value);
     [[nodiscard]] bool Has(std::string_view key) const;
     void Erase(const std::string& key);
     void Clear();
