@@ -124,6 +124,46 @@ public:
         return global;
     }
 
+    [[nodiscard]] explicit operator bool() const noexcept {
+        return GetValue() != Type{};
+    }
+    [[nodiscard]] friend bool operator==(const BasicSetting& lhs, const Type& rhs) noexcept {
+        return lhs.GetValue() == rhs;
+    }
+    [[nodiscard]] friend bool operator==(const Type& lhs, const BasicSetting& rhs) noexcept {
+        return lhs == rhs.GetValue();
+    }
+    [[nodiscard]] friend bool operator!=(const BasicSetting& lhs, const Type& rhs) noexcept {
+        return !operator==(lhs, rhs);
+    }
+    [[nodiscard]] friend bool operator!=(const Type& lhs, const BasicSetting& rhs) noexcept {
+        return !operator==(lhs, rhs);
+    }
+    [[nodiscard]] friend bool operator<(const BasicSetting& lhs, const Type& rhs) noexcept {
+        return lhs.GetValue() < rhs;
+    }
+    [[nodiscard]] friend bool operator<(const Type& lhs, const BasicSetting& rhs) noexcept {
+        return lhs < rhs.GetValue();
+    }
+    [[nodiscard]] friend bool operator<=(const BasicSetting& lhs, const Type& rhs) noexcept {
+        return !operator>(lhs, rhs);
+    }
+    [[nodiscard]] friend bool operator<=(const Type& lhs, const BasicSetting& rhs) noexcept {
+        return !operator>(lhs, rhs);
+    }
+    [[nodiscard]] friend bool operator>(const BasicSetting& lhs, const Type& rhs) noexcept {
+        return operator<(rhs, lhs);
+    }
+    [[nodiscard]] friend bool operator>(const Type& lhs, const BasicSetting& rhs) noexcept {
+        return operator<(rhs, lhs);
+    }
+    [[nodiscard]] friend bool operator>=(const BasicSetting& lhs, const Type& rhs) noexcept {
+        return !operator<(lhs, rhs);
+    }
+    [[nodiscard]] friend bool operator>=(const Type& lhs, const BasicSetting& rhs) noexcept {
+        return !operator<(lhs, rhs);
+    }
+
 protected:
     const Type default_value{}; ///< The default value
     Type global{};              ///< The setting
@@ -228,6 +268,46 @@ public:
             return this->global;
         }
         return custom;
+    }
+
+    [[nodiscard]] explicit operator bool() const noexcept {
+        return GetValue() != Type{};
+    }
+    [[nodiscard]] friend bool operator==(const Setting& lhs, const Type& rhs) noexcept {
+        return lhs.GetValue() == rhs;
+    }
+    [[nodiscard]] friend bool operator==(const Type& lhs, const Setting& rhs) noexcept {
+        return lhs == rhs.GetValue();
+    }
+    [[nodiscard]] friend bool operator!=(const Setting& lhs, const Type& rhs) noexcept {
+        return !operator==(lhs, rhs);
+    }
+    [[nodiscard]] friend bool operator!=(const Type& lhs, const Setting& rhs) noexcept {
+        return !operator==(lhs, rhs);
+    }
+    [[nodiscard]] friend bool operator<(const Setting& lhs, const Type& rhs) noexcept {
+        return lhs.GetValue() < rhs;
+    }
+    [[nodiscard]] friend bool operator<(const Type& lhs, const Setting& rhs) noexcept {
+        return lhs < rhs.GetValue();
+    }
+    [[nodiscard]] friend bool operator<=(const Setting& lhs, const Type& rhs) noexcept {
+        return !operator>(lhs, rhs);
+    }
+    [[nodiscard]] friend bool operator<=(const Type& lhs, const Setting& rhs) noexcept {
+        return !operator>(lhs, rhs);
+    }
+    [[nodiscard]] friend bool operator>(const Setting& lhs, const Type& rhs) noexcept {
+        return operator<(rhs, lhs);
+    }
+    [[nodiscard]] friend bool operator>(const Type& lhs, const Setting& rhs) noexcept {
+        return operator<(rhs, lhs);
+    }
+    [[nodiscard]] friend bool operator>=(const Setting& lhs, const Type& rhs) noexcept {
+        return !operator<(lhs, rhs);
+    }
+    [[nodiscard]] friend bool operator>=(const Type& lhs, const Setting& rhs) noexcept {
+        return !operator<(lhs, rhs);
     }
 
 private:
