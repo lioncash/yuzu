@@ -58,11 +58,11 @@ public:
     /**
      * Sets a default value, label, and setting value.
      *
-     * @param default_val Intial value of the setting, and default value of the setting
+     * @param default_val Initial value of the setting, and default value of the setting
      * @param name Label for the setting
      */
-    explicit BasicSetting(const Type& default_val, const std::string& name)
-        : default_value{default_val}, global{default_val}, label{name} {}
+    explicit BasicSetting(const Type& default_val, std::string name)
+        : default_value{default_val}, global{default_val}, label{std::move(name)} {}
     ~BasicSetting() = default;
 
     /**
@@ -186,11 +186,11 @@ public:
     /**
      * Sets a default value, label, and setting value.
      *
-     * @param default_val Intial value of the setting, and default value of the setting
+     * @param default_val Initial value of the setting, and default value of the setting
      * @param name Label for the setting
      */
-    explicit Setting(const Type& default_val, const std::string& name)
-        : BasicSetting<Type>(default_val, name) {}
+    explicit Setting(const Type& default_val, std::string name)
+        : BasicSetting(default_val, std::move(name)) {}
     ~Setting() = default;
 
     /**
